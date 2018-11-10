@@ -20,10 +20,11 @@ Once uploaded the joystick works as follows:
 * "Joystick" tilts "the surface" which imparts gravity on the balls and makes them move.
 
 Things that could be improved:
-1. Look into replacing the square rooting with approximations
-2. Push the physics code onto a seperate thread
-3. Bust the code up into seperate files (main, display, input, etc.)
-4. Convert the Verlet code into a library, pull the display code out of it
-5. Add constraints with pinning
-6. Add constraint & paricle collision
-7. Add constraint & constraint collision
+1. The ball on ball collision response is too strong at close distances for some reason
+2. Look into replacing the square rooting with approximations
+3. Push the physics code onto a seperate thread
+4. Bust the code up into seperate files (main, display, input, etc.)
+5. Convert the Verlet code into a library, pull the display code out of it
+6. Add constraints with pinning
+7. Add constraint & paricle collision
+8. Add constraint & constraint collision

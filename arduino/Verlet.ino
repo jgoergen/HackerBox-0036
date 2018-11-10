@@ -3,8 +3,9 @@
 const float BALL_RADIUS = 1;
 const int STAGE_WIDTH = 63;
 const int STAGE_HEIGHT = 31;
-const float CIRCULAR_COLLISION_RESPONSE_DAMPENING = 0.2;
-float FRICTION = 0.05;
+const float CIRCULAR_COLLISION_RESPONSE_DAMPENING = 0.15f;
+const float WALL_COLLISION_RESPONSE_DAMPENING = 1.8f;
+float FRICTION = 0.05f;
 const int MAX_BALLS = MAX_BALLS_IN_SCENE;
 float ballsX[MAX_BALLS];
 float ballsY[MAX_BALLS];
@@ -82,10 +83,10 @@ void verlet_update(float ax, float ay) {
       if (sqrt((ballsX[index2] - ballsX[index1]) * 
           (ballsX[index2] - ballsX[index1]) + 
           (ballsY[index2] - ballsY[index1]) * 
-          (ballsY[index2] - ballsY[index1])) < BALL_RADIUS) {
+          (ballsY[index2] - ballsY[index1])) <= BALL_RADIUS) {
 
-        collisionVelocityX = ballsX[index2] - ballsOldX[index1];
-        collisionVelocityY = ballsY[index2] - ballsOldY[index1];
+        collisionVelocityX = ballsX[index2] - ballsX[index1];
+        collisionVelocityY = ballsY[index2] - ballsY[index1];
         
         // normalize the velocity vector 
         magnitude = sqrt(collisionVelocityX * collisionVelocityX + collisionVelocityY * collisionVelocityY);
@@ -106,10 +107,10 @@ void verlet_update(float ax, float ay) {
 
     // bounce off walls
     if (ballsX[index1] < 0.0f || ballsX[index1] >= STAGE_WIDTH)
-      ballsX[index1] -= velocityX * 2;  
+      ballsX[index1] -= velocityX * WALL_COLLISION_RESPONSE_DAMPENING;
 
     if (ballsY[index1] < 0.0f || ballsY[index1] >= STAGE_HEIGHT)
-      ballsY[index1] -= velocityY * 2;
+      ballsY[index1] -= velocityY * WALL_COLLISION_RESPONSE_DAMPENING;
   }
 }
 

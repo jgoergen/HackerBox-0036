@@ -100,15 +100,15 @@ void loop() {
   if (millis() - lastVerlet > VERLET_WAIT) {
     
     // translate joystick x/y into gravity between -0.25 and 0.25, reverse y as well.
-    float x = 0.25f - (0.5f * ((float)analogRead(JOY_X) / 4096.0f));
-    float y = (0.25f - (0.5f * ((float)analogRead(JOY_Y) / 4096.0f))) * -1;
+    float x = (0.25f - (0.5f * ((float)analogRead(JOY_X) / 4096.0f))) * -1;
+    float y = (0.25f - (0.5f * ((float)analogRead(JOY_Y) / 4096.0f)));
 
     // joystick deadzone
     if (x < 0.05f && x > -0.05f)
       x = 0;
 
     if (y < 0.05f && y > -0.05f)
-      y = 0;
+      y = 0.03;
     
     lastVerlet = millis();
     verlet_update(x, y);
