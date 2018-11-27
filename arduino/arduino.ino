@@ -108,7 +108,7 @@ void loop() {
       x = 0;
 
     if (y < 0.05f && y > -0.05f)
-      y = 0.03;
+      y = -0.03;
     
     lastVerlet = millis();
     verlet_update(x, y);

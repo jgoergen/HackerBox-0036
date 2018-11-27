@@ -28,6 +28,7 @@ int iterations;
 float diffVectX;
 float diffVectY;
 float magnitude;
+float collisionDistance;
 
 void verlet_init() {
 
@@ -79,29 +80,26 @@ void verlet_update(float ax, float ay) {
           abs(ballsY[index1] - ballsY[index2]) > ballRadiusDoubled)
           continue;
     
-      // second pass, much slower but accurate check
-      if (sqrt((ballsX[index2] - ballsX[index1]) * 
-          (ballsX[index2] - ballsX[index1]) + 
-          (ballsY[index2] - ballsY[index1]) * 
-          (ballsY[index2] - ballsY[index1])) <= BALL_RADIUS) {
+      collisionDistance = 
+        sqrt((ballsX[index2] - ballsX[index1]) * 
+        (ballsX[index2] - ballsX[index1]) + 
+        (ballsY[index2] - ballsY[index1]) * 
+        (ballsY[index2] - ballsY[index1]));
+    
+      if (collisionDistance < ballRadiusDoubled) {
 
         collisionVelocityX = ballsX[index2] - ballsX[index1];
         collisionVelocityY = ballsY[index2] - ballsY[index1];
         
         // normalize the velocity vector 
-        magnitude = sqrt(collisionVelocityX * collisionVelocityX + collisionVelocityY * collisionVelocityY);
-        collisionVelocityX /= magnitude;
-        collisionVelocityY /= magnitude;
-
-        // dampen it
-        collisionVelocityX *= CIRCULAR_COLLISION_RESPONSE_DAMPENING;
-        collisionVelocityY *= CIRCULAR_COLLISION_RESPONSE_DAMPENING;
+        collisionVelocityX /= collisionDistance;
+        collisionVelocityY /= collisionDistance;
 
         // push the balls away from eachother
-        ballsX[index1] -= collisionVelocityX;
-        ballsY[index1] -= collisionVelocityY;
-        ballsX[index2] += collisionVelocityX;
-        ballsY[index2] += collisionVelocityY;
+        ballsX[index1] -= (collisionVelocityX * 0.5);
+        ballsY[index1] -= (collisionVelocityY * 0.5);
+        ballsX[index2] += (collisionVelocityX * 0.5);
+        ballsY[index2] += (collisionVelocityY * 0.5);
       }
     }
 
