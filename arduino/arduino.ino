@@ -1,7 +1,5 @@
 // Core display library provided by the PxMatrix library https://github.com/2dom/PxMatrix
 // Basic integration provided by Hackerboxes https://www.instructables.com/id/HackerBox-0036-JumboTron/
-// Verlet integration based on https://github.com/jgoergen/VerletAlgorythm
-
 #include <PxMatrix.h>
 
 // ################# SETTINGS ###########################################
@@ -11,10 +9,13 @@
 
 #define INPUT_WAIT    100 // ~10 fps
 #define DISPLAY_WAIT  33 // ~30 fps
-#define VERLET_WAIT   15 // ~60 fps
+#define VERLET_WAIT   10 // ~100 fps
+#define VERLET_PRECISION     100
 
 #define MIN_BALLS_IN_SCENE  100
 #define MAX_BALLS_IN_SCENE  400
+#define IDLE_GRAVITY_X 0
+#define IDLE_GRAVITY_Y -0.03
 
 // ################ PINS ################################################
 
@@ -62,15 +63,8 @@ void setup() {
   pinMode(KEY_3, INPUT_PULLUP);
   pinMode(KEY_4, INPUT_PULLUP);
 
-  // setup display
-  display.begin(16); // 1/16 scan
-  display.setFastUpdate(true);
-  display_update_enable(true);
-
-  // initialize the verlet integration
+  display_init();
   verlet_init();
-
-  // generate a scene
   generateScene();
 }
 
@@ -94,31 +88,33 @@ void loop() {
 
     if (digitalRead(KEY_4) == LOW)
       verlet_remove_ball();    
+
+    // translate joystick x/y into gravity between -0.25 and 0.25, reverse y as well.
+    float x = (0.15f - (0.3f * ((float)analogRead(JOY_X) / 4096.0f))) * -1;
+    float y = (0.15f - (0.3f * ((float)analogRead(JOY_Y) / 4096.0f)));
+
+    // joystick deadzone
+    if (x < 0.05f && x > -0.05f)
+      x = IDLE_GRAVITY_X;
+
+    if (y < 0.05f && y > -0.05f)
+      y = IDLE_GRAVITY_Y;
+      
+    verlet_updateGravity(x, y);
   }
   
   // update verlet integration
   if (millis() - lastVerlet > VERLET_WAIT) {
     
-    // translate joystick x/y into gravity between -0.25 and 0.25, reverse y as well.
-    float x = (0.25f - (0.5f * ((float)analogRead(JOY_X) / 4096.0f))) * -1;
-    float y = (0.25f - (0.5f * ((float)analogRead(JOY_Y) / 4096.0f)));
-
-    // joystick deadzone
-    if (x < 0.05f && x > -0.05f)
-      x = 0;
-
-    if (y < 0.05f && y > -0.05f)
-      y = -0.03;
-    
     lastVerlet = millis();
-    verlet_update(x, y);
+    verlet_update();
   }
 
   // update display
   if (millis() - lastDisplay > DISPLAY_WAIT) {
     
     lastDisplay = millis();
-    verlet_draw();
+    display_update();
   }  
 }
 
@@ -128,7 +124,7 @@ void generateScene() {
 
   Serial.println("generating scene");
   verlet_clear_all();
-  verlet_set_friction(random(0, 40) / 1000.0f);
+  //verlet_changeWallBounce(random(100, 200) / 100);
       
   int numberOfBalls = random(MIN_BALLS_IN_SCENE, MAX_BALLS_IN_SCENE);
 

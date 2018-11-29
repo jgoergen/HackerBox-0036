@@ -1,145 +1,143 @@
-// constants
+// Verlet integration based on https://github.com/jgoergen/VerletAlgorythm
+// All values multiplied up by 100 to move 2 decimal points into whole number range. This is done to avoid floating point math and use words
+// instead of floats. This is much less accurate, but should be faster and much less memory.
+// note word used on numbers that will not require negative numbers, otherwise int
 
-const float BALL_RADIUS = 1;
-const int STAGE_WIDTH = 63;
-const int STAGE_HEIGHT = 31;
-const float CIRCULAR_COLLISION_RESPONSE_DAMPENING = 0.15f;
-const float WALL_COLLISION_RESPONSE_DAMPENING = 1.8f;
-float FRICTION = 0.05f;
-const int MAX_BALLS = MAX_BALLS_IN_SCENE;
-float ballsX[MAX_BALLS];
-float ballsY[MAX_BALLS];
-int ballsCount = 0;
-float ballsOldX[MAX_BALLS];
-float ballsOldY[MAX_BALLS];
-float gravityX = 0.0f;
-float gravityY = 0.0f;
-int ballsR[MAX_BALLS];
-int ballsG[MAX_BALLS];
-int ballsB[MAX_BALLS];
-float ballRadiusDoubled = BALL_RADIUS * 2.0f;
-float velocityX;
-float velocityY;
-float collisionVelocityX;
-float collisionVelocityY;
+// constants
+const word BALL_RADIUS = 1 * VERLET_PRECISION;
+const word STAGE_WIDTH = 63 * VERLET_PRECISION;
+const word STAGE_HEIGHT = 31 * VERLET_PRECISION;
+float WALL_COLLISION_RESPONSE_DAMPENING = 1.60f;
+const word MAX_BALLS = MAX_BALLS_IN_SCENE;
+word ballsX[MAX_BALLS];
+word ballsY[MAX_BALLS];
+word ballsCount = 0;
+word ballsOldX[MAX_BALLS];
+word ballsOldY[MAX_BALLS];
+int gravityX = 0;
+int gravityY = 0;
+byte ballsR[MAX_BALLS];
+byte ballsG[MAX_BALLS];
+byte ballsB[MAX_BALLS];
+word ballRadiusDoubled = BALL_RADIUS * 2;
+int velocityX;
+int velocityY;
+int velocity2X;
+int velocity2Y;
+int collisionVelocityX;
+int collisionVelocityY;
 int index1;
 int index2;
 int iterations;
-float diffVectX;
-float diffVectY;
-float magnitude;
-float collisionDistance;
+int diffVectX;
+int diffVectY;
+int magnitude;
+int collisionDistance;
 
 void verlet_init() {
 
   ballsCount = 0;
-  gravityX = 0.0f;
-  gravityY = 0.0f;
+  gravityX = 0;
+  gravityY = 0;
 
   // zero out all values
   for (int i = 0; i < MAX_BALLS; i++) {
 
-    ballsX[i] = 0.0f;
-    ballsY[i] = 0.0f;
-    ballsOldX[i] = 0.0f;
-    ballsOldY[i] = 0.0f;
+    ballsX[i] = 0;
+    ballsY[i] = 0;
+    ballsOldX[i] = 0;
+    ballsOldY[i] = 0;
     ballsR[i] = 0;
     ballsG[i] = 0;
     ballsB[i] = 0;      
   }
 }
 
-void verlet_update(float ax, float ay) {
+void verlet_updateGravity(float ax, float ay) {
+  
+  // clamp gravity
+  // we take a float for this, and turn it into ints so the integration isn't so confusion from outside the lib
+  gravityX = int(max(-0.05f, min(0.05f, ax)) * VERLET_PRECISION);
+  gravityY = int(max(-0.05f, min(0.05f, ay)) * VERLET_PRECISION);
+}
 
-  // clamp gravity  
-  gravityX = max(-0.2f, min(0.2f, ax));
-  gravityY = max(-0.2f, min(0.2f, ay));
+void verlet_update() {
 
   // process physics for each ball
   for (index1 = 0; index1 < ballsCount; index1 ++) {
-  
-    // derive velocity, add gravity to it, add friction to it
-    float velocityX = (ballsX[index1] - ballsOldX[index1] + gravityX) * (1 - FRICTION);
-    float velocityY = (ballsY[index1] - ballsOldY[index1] + gravityY) * (1 - FRICTION);
-            
+    
+    // derive velocity, add gravity to it
+    velocityX = (ballsX[index1] - ballsOldX[index1] + gravityX);
+    velocityY = (ballsY[index1] - ballsOldY[index1] + gravityY);
+
     // apply velocity
     ballsOldX[index1] = ballsX[index1];
     ballsOldY[index1] = ballsY[index1];
     ballsX[index1] += velocityX;
     ballsY[index1] += velocityY;
-
+        
     // collide with other balls
     for (index2 = 0; index2 < ballsCount; index2 ++) {
 
       // don't collide with itself
       if (index1 == index2)
           continue;
-
+          
       // first pass quick distance check
-      if (abs(ballsX[index1] - ballsX[index2]) > ballRadiusDoubled ||
-          abs(ballsY[index1] - ballsY[index2]) > ballRadiusDoubled)
-          continue;
+      if (abs(ballsX[index2] - ballsX[index1]) < BALL_RADIUS &&
+          abs(ballsY[index2] - ballsY[index1]) < BALL_RADIUS) {
     
-      collisionDistance = 
-        sqrt((ballsX[index2] - ballsX[index1]) * 
-        (ballsX[index2] - ballsX[index1]) + 
-        (ballsY[index2] - ballsY[index1]) * 
-        (ballsY[index2] - ballsY[index1]));
-    
-      if (collisionDistance < ballRadiusDoubled) {
+        collisionDistance = 
+          fastSQRT(
+            (ballsX[index1] - ballsX[index2]) * (ballsX[index1] - ballsX[index2]) + 
+            (ballsY[index1] - ballsY[index2]) * (ballsY[index1] - ballsY[index2]));
 
-        collisionVelocityX = ballsX[index2] - ballsX[index1];
-        collisionVelocityY = ballsY[index2] - ballsY[index1];
-        
-        // normalize the velocity vector 
-        collisionVelocityX /= collisionDistance;
-        collisionVelocityY /= collisionDistance;
-
-        // push the balls away from eachother
-        ballsX[index1] -= (collisionVelocityX * 0.5);
-        ballsY[index1] -= (collisionVelocityY * 0.5);
-        ballsX[index2] += (collisionVelocityX * 0.5);
-        ballsY[index2] += (collisionVelocityY * 0.5);
+        if (collisionDistance < BALL_RADIUS && collisionDistance != 0) { 
+      
+          collisionVelocityX = 
+            (ballsX[index1] - ballsOldX[index1]) - 
+            (ballsX[index2] - ballsOldX[index2]);
+            
+          collisionVelocityY = 
+            (ballsY[index1] - ballsOldY[index1]) - 
+            (ballsY[index2] - ballsOldY[index2]);
+          
+          ballsX[index1] -= collisionVelocityX;
+          ballsY[index1] -= collisionVelocityY;
+          ballsX[index2] += collisionVelocityX;
+          ballsY[index2] += collisionVelocityY;
+        }
       }
     }
-
+    
     // bounce off walls
-    if (ballsX[index1] < 0.0f || ballsX[index1] >= STAGE_WIDTH)
-      ballsX[index1] -= velocityX * WALL_COLLISION_RESPONSE_DAMPENING;
+    if (ballsX[index1] <= 0 || ballsX[index1] >= STAGE_WIDTH)
+      ballsX[index1] -= int(velocityX * WALL_COLLISION_RESPONSE_DAMPENING);
 
-    if (ballsY[index1] < 0.0f || ballsY[index1] >= STAGE_HEIGHT)
-      ballsY[index1] -= velocityY * WALL_COLLISION_RESPONSE_DAMPENING;
+    if (ballsY[index1] <= 0 || ballsY[index1] >= STAGE_HEIGHT)
+      ballsY[index1] -= int(velocityY * WALL_COLLISION_RESPONSE_DAMPENING);
   }
 }
 
-void verlet_draw() {
+void verlet_add_ball(float x, float y, float velocityX, float velocityY, int r, int g, int b) {
 
-  display.clearDisplay();
-  
-  for (index1 = 0; index1 < ballsCount; index1 ++)
-    display.drawPixel(
-      floor(ballsX[index1]), 
-      floor(ballsY[index1]), 
-      display.color565(
-        ballsR[index1], 
-        ballsG[index1], 
-        ballsB[index1]));
+  // limit the amount we can add
+  if (ballsCount == MAX_BALLS)
+      return;
+
+  ballsX[ballsCount] = int(x * VERLET_PRECISION);
+  ballsY[ballsCount] = int(y * VERLET_PRECISION);
+  ballsOldX[ballsCount] = int((x - velocityX) * VERLET_PRECISION);
+  ballsOldY[ballsCount] = int((y - velocityY) * VERLET_PRECISION);
+  ballsR[ballsCount] = r;
+  ballsG[ballsCount] = g;
+  ballsB[ballsCount] = b;    
+  ballsCount ++;
 }
 
-void verlet_add_ball(float x, float y, float velocityX, float velocityY, int r, int g, int b) {
-  
-    // limit the amount we can add
-    if (ballsCount == MAX_BALLS)
-        return;
+void verlet_changeWallBounce(float value) {
 
-    ballsX[ballsCount] = x;
-    ballsY[ballsCount] = y;
-    ballsOldX[ballsCount] = x - velocityX;
-    ballsOldY[ballsCount] = y - velocityY;
-    ballsR[ballsCount] = r;
-    ballsG[ballsCount] = g;
-    ballsB[ballsCount] = b;    
-    ballsCount ++;    
+  WALL_COLLISION_RESPONSE_DAMPENING = value;
 }
 
 void verlet_remove_ball() {
@@ -150,14 +148,25 @@ void verlet_remove_ball() {
 
 void verlet_clear_all() {
 
-  Serial.println("Verlet Clearing");
   ballsCount = 0;
 }
 
-void verlet_set_friction(float friction) {  
+int fastSQRT(int n) {
+   
+  int c = 0x8000; 
+  int g = 0x8000; 
   
-  Serial.print("Verlet setting friction to");
-  Serial.println(friction);
-  FRICTION = friction;
+  for(;;) {
+    
+     if (g * g > n)
+       g ^= c; 
+          
+     c >>= 1; 
+
+     if (c == 0)     
+       return g;
+       
+     g |= c;   
+  } 
 }
 
