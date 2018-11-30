@@ -1,34 +1,32 @@
 // Verlet integration based on https://github.com/jgoergen/VerletAlgorythm
-// All values multiplied up by 100 to move 2 decimal points into whole number range. This is done to avoid floating point math and use words
+// All values multiplied up by 100 to move 2 decimal points into whole number range. This is done to avoid floating point math and use ints
 // instead of floats. This is much less accurate, but should be faster and much less memory.
-// note word used on numbers that will not require negative numbers, otherwise int
+// note int used on numbers that will not require negative numbers, otherwise int
 
 // constants
-const word BALL_RADIUS = 1 * VERLET_PRECISION;
-const word STAGE_WIDTH = 63 * VERLET_PRECISION;
-const word STAGE_HEIGHT = 31 * VERLET_PRECISION;
+int BALL_RADIUS = 1 * VERLET_PRECISION;
+const int STAGE_WIDTH = 64 * VERLET_PRECISION;
+const int STAGE_HEIGHT = 32 * VERLET_PRECISION;
 float WALL_COLLISION_RESPONSE_DAMPENING = 1.60f;
-const word MAX_BALLS = MAX_BALLS_IN_SCENE;
-word ballsX[MAX_BALLS];
-word ballsY[MAX_BALLS];
-word ballsCount = 0;
-word ballsOldX[MAX_BALLS];
-word ballsOldY[MAX_BALLS];
+const int MAX_BALLS = MAX_BALLS_IN_SCENE;
+int ballsX[MAX_BALLS];
+int ballsY[MAX_BALLS];
+uint16_t ballsCount = 0;
+int ballsOldX[MAX_BALLS];
+int ballsOldY[MAX_BALLS];
 int gravityX = 0;
 int gravityY = 0;
 byte ballsR[MAX_BALLS];
 byte ballsG[MAX_BALLS];
 byte ballsB[MAX_BALLS];
-word ballRadiusDoubled = BALL_RADIUS * 2;
+int ballRadiusDoubled = BALL_RADIUS * 2;
+int ballRadiusHalved = BALL_RADIUS / 2;
 int velocityX;
 int velocityY;
-int velocity2X;
-int velocity2Y;
 int collisionVelocityX;
 int collisionVelocityY;
-int index1;
-int index2;
-int iterations;
+uint16_t index1;
+uint16_t index2;
 int diffVectX;
 int diffVectY;
 int magnitude;
@@ -75,6 +73,20 @@ void verlet_update() {
     ballsOldY[index1] = ballsY[index1];
     ballsX[index1] += velocityX;
     ballsY[index1] += velocityY;
+
+    /**/
+    // bounce off walls
+    if (ballsX[index1] <= 1 || ballsX[index1] >= STAGE_WIDTH - ballRadiusHalved)
+      ballsX[index1] -= int(velocityX * WALL_COLLISION_RESPONSE_DAMPENING);
+
+    if (ballsY[index1] <= 1 || ballsY[index1] >= STAGE_HEIGHT - ballRadiusHalved)
+      ballsY[index1] -= int(velocityY * WALL_COLLISION_RESPONSE_DAMPENING);   
+    
+    // hard clamping to stage
+    if (ballsX[index1] < 0) ballsX[index1] = 0;
+    if (ballsY[index1] < 0) ballsY[index1] = 0;
+    if (ballsX[index1] > STAGE_WIDTH - ballRadiusHalved) ballsX[index1] = STAGE_WIDTH - ballRadiusHalved;
+    if (ballsY[index1] > STAGE_HEIGHT - ballRadiusHalved) ballsY[index1] = STAGE_HEIGHT - ballRadiusHalved;
         
     // collide with other balls
     for (index2 = 0; index2 < ballsCount; index2 ++) {
@@ -89,11 +101,11 @@ void verlet_update() {
     
         collisionDistance = 
           fastSQRT(
-            (ballsX[index1] - ballsX[index2]) * (ballsX[index1] - ballsX[index2]) + 
-            (ballsY[index1] - ballsY[index2]) * (ballsY[index1] - ballsY[index2]));
+            (ballsX[index2] - ballsX[index1]) * (ballsX[index2] - ballsX[index1]) + 
+            (ballsY[index2] - ballsY[index1]) * (ballsY[index2] - ballsY[index1]));
 
         if (collisionDistance < BALL_RADIUS && collisionDistance != 0) { 
-      
+      /*
           collisionVelocityX = 
             (ballsX[index1] - ballsOldX[index1]) - 
             (ballsX[index2] - ballsOldX[index2]);
@@ -106,20 +118,24 @@ void verlet_update() {
           ballsY[index1] -= collisionVelocityY;
           ballsX[index2] += collisionVelocityX;
           ballsY[index2] += collisionVelocityY;
+          */
+
+          collisionVelocityX = ballsX[index2] - ballsX[index1];
+          collisionVelocityY = ballsY[index2] - ballsY[index1];
+          collisionVelocityX /= collisionDistance;
+          collisionVelocityY /= collisionDistance;
+
+          ballsX[index1] -= collisionVelocityX;
+          ballsY[index1] -= collisionVelocityY;
+          ballsX[index2] += collisionVelocityX;
+          ballsY[index2] += collisionVelocityY;
         }
       }
-    }
-    
-    // bounce off walls
-    if (ballsX[index1] <= 0 || ballsX[index1] >= STAGE_WIDTH)
-      ballsX[index1] -= int(velocityX * WALL_COLLISION_RESPONSE_DAMPENING);
-
-    if (ballsY[index1] <= 0 || ballsY[index1] >= STAGE_HEIGHT)
-      ballsY[index1] -= int(velocityY * WALL_COLLISION_RESPONSE_DAMPENING);
+    }      
   }
 }
 
-void verlet_add_ball(float x, float y, float velocityX, float velocityY, int r, int g, int b) {
+void verlet_addBall(float x, float y, float velocityX, float velocityY, int r, int g, int b) {
 
   // limit the amount we can add
   if (ballsCount == MAX_BALLS)
@@ -140,13 +156,13 @@ void verlet_changeWallBounce(float value) {
   WALL_COLLISION_RESPONSE_DAMPENING = value;
 }
 
-void verlet_remove_ball() {
+void verlet_removeBall() {
 
   if (ballsCount > 0)
     ballsCount --;
 }
 
-void verlet_clear_all() {
+void verlet_clearAll() {
 
   ballsCount = 0;
 }

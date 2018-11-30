@@ -7,15 +7,15 @@
 // instead of using a delay on our loop, we'll be watching the time elapsed so we have independent
 // update speeds on our processes.
 
-#define INPUT_WAIT    100 // ~10 fps
-#define DISPLAY_WAIT  33 // ~30 fps
-#define VERLET_WAIT   10 // ~100 fps
-#define VERLET_PRECISION     100
+#define INPUT_WAIT          100 // ~10 fps
+#define DISPLAY_WAIT        33 // ~30 fps
+#define VERLET_WAIT         10 // ~100 fps
+#define VERLET_PRECISION    100
 
 #define MIN_BALLS_IN_SCENE  100
 #define MAX_BALLS_IN_SCENE  400
-#define IDLE_GRAVITY_X 0
-#define IDLE_GRAVITY_Y -0.03
+#define IDLE_GRAVITY_X      0
+#define IDLE_GRAVITY_Y      0//-0.03
 
 // ################ PINS ################################################
 
@@ -78,7 +78,7 @@ void loop() {
     lastInput = millis();
 
     if (digitalRead(KEY_1) == LOW)
-      verlet_clear_all();
+      verlet_clearAll();
 
     if (digitalRead(KEY_2) == LOW)
       generateRandomBall();
@@ -87,18 +87,15 @@ void loop() {
       generateScene();
 
     if (digitalRead(KEY_4) == LOW)
-      verlet_remove_ball();    
+      verlet_removeBall();    
 
     // translate joystick x/y into gravity between -0.25 and 0.25, reverse y as well.
-    float x = (0.15f - (0.3f * ((float)analogRead(JOY_X) / 4096.0f))) * -1;
-    float y = (0.15f - (0.3f * ((float)analogRead(JOY_Y) / 4096.0f)));
+    float x = (0.025f - (0.05f * ((float)analogRead(JOY_X) / 4096.0f))) * -1;
+    float y = (0.025f - (0.05f * ((float)analogRead(JOY_Y) / 4096.0f)));
 
     // joystick deadzone
-    if (x < 0.05f && x > -0.05f)
-      x = IDLE_GRAVITY_X;
-
-    if (y < 0.05f && y > -0.05f)
-      y = IDLE_GRAVITY_Y;
+    if (x < 0.01f && x > -0.01f) x = IDLE_GRAVITY_X;
+    if (y < 0.01f && y > -0.01f) y = IDLE_GRAVITY_Y;
       
     verlet_updateGravity(x, y);
   }
@@ -123,14 +120,13 @@ void loop() {
 void generateScene() {
 
   Serial.println("generating scene");
-  verlet_clear_all();
+  verlet_clearAll();
   //verlet_changeWallBounce(random(100, 200) / 100);
-      
-  int numberOfBalls = random(MIN_BALLS_IN_SCENE, MAX_BALLS_IN_SCENE);
+  
+  int numberOfBalls = random(floor(MIN_BALLS_IN_SCENE), floor(MAX_BALLS_IN_SCENE));
 
   Serial.print("Adding ");
-  Serial.print(numberOfBalls);
-  Serial.println(" balls");
+  Serial.println(numberOfBalls);
   
   for (int i = 0; i < numberOfBalls; i++)
     generateRandomBall();
@@ -138,7 +134,7 @@ void generateScene() {
 
 void generateRandomBall() {
 
-  verlet_add_ball(
+  verlet_addBall(
     random(1, 6300) / 100.0f, 
     random(1, 3100) / 100.0f, 
     (random(1, 200) / 100.0f) - 1.0f, 
@@ -146,28 +142,4 @@ void generateRandomBall() {
     random(1, 255),
     random(1, 255),
     random(1, 255));
-}
-
-void IRAM_ATTR display_updater() {
-  
-  // Increment the counter and set the time of ISR
-  portENTER_CRITICAL_ISR(&timerMux);
-  display.display(display_draw_time);
-  portEXIT_CRITICAL_ISR(&timerMux);
-}
-
-void display_update_enable(bool is_enable) {
-  
-  if (is_enable) {
-  
-    timer = timerBegin(0, 80, true);
-    timerAttachInterrupt(timer, &display_updater, true);
-    timerAlarmWrite(timer, 2000, true);
-    timerAlarmEnable(timer);
-    
-  } else {
-    
-    timerDetachInterrupt(timer);
-    timerAlarmDisable(timer);
-  }
 }
